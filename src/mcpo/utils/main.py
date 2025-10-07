@@ -1,6 +1,6 @@
 import json
 import traceback
-from typing import Any, Dict, ForwardRef, List, Optional, Type, Union
+from typing import Any, Dict, ForwardRef, List, Optional, Type, Union, Literal
 import logging
 from fastapi import HTTPException
 
@@ -122,6 +122,17 @@ def _process_schema_property(
 
     default_value = ... if is_required else prop_schema.get("default", None)
     pydantic_field = Field(default=default_value, description=prop_desc)
+
+    # Handle enum by mapping to Literal for OpenAPI exposure
+    if "enum" in prop_schema and isinstance(prop_schema.get("enum"), list) and len(prop_schema["enum"]) > 0:
+        enum_values = prop_schema["enum"]
+        try:
+            # Create a Literal of the provided enum values
+            literal_type = Literal[tuple(enum_values)]  # type: ignore[index]
+            return literal_type, pydantic_field
+        except TypeError:
+            # Fallback if values are not hashable or suitable for Literal
+            pass
 
     # Handle the case where prop_type is missing but 'anyOf' key exists
     # In this case, use data type from 'anyOf' to determine the type hint

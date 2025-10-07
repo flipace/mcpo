@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel, Field
-from typing import Any, List, Dict, Union
+from typing import Any, List, Dict, Union, get_origin, get_args, Literal
 
 from mcpo.utils.main import _process_schema_property
 
@@ -300,13 +300,17 @@ def test_multi_type_property_with_any_of():
     )
 
     # Check if the resulting type is a Union
-    assert result_type.__origin__ == Union
+    assert get_origin(result_type) == Union
 
-    # Check if the Union has the correct number of types
-    assert len(result_type.__args__) == 3
-    assert len(result_type.__args__[0].model_fields) == 2
-    assert len(result_type.__args__[1].model_fields) == 1
-    assert result_type.__args__[2] is str
+    # Check if the Union has the correct number of types and shapes
+    union_args = result_type.__args__
+    assert len(union_args) == 3
+    assert len(union_args[0].model_fields) == 2
+    assert len(union_args[1].model_fields) == 1
+
+    # Third arg should be a Literal of the enum values
+    assert get_origin(union_args[2]) == Literal
+    assert set(get_args(union_args[2])) == {"auto", "none"}
 
     # assert result_field parameter config
     assert result_field.description == "A property with multiple types"
